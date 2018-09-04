@@ -153,8 +153,8 @@ s = sortslices(saturationLine, dims=1) #want one continuous line, so we are sort
 
 #using Plots package to plot the saturation line
 gr()
-plot(s[1:end, 1], s[1:end, 2],
-    fill=(0, 0.5, :gray),
+plot(s[1:end, 1], s[1:end, 2], label=["Saturation Line"],
+    fill=(0, 0.5, :gray,),
     ylabel = "Temperature (K)",
     xlabel = "Entropy (J/(kg*K))")
 
@@ -168,7 +168,7 @@ for i = 1:length(isobars)
     for s in 1:length(entropies)
         push!(temperatures, saturationTemperatureIsobars(entropies[s],pressure))
     end
-    plot!(entropies, temperatures) #exclamation point appends this plot over the existing plot
+    plot!(entropies, temperatures, label=(string(pressure/1e5)*" bar")) #exclamation point appends this plot over the existing plot
 end
 gui()
 
