@@ -16,19 +16,22 @@ using Statistics #Needed to calculate mean
 xls = openxl("SteamTables.xlsx") #open excel steam table file
 satProps = readxlsheet(xls, "Saturation Table") #read in properties as an array
 
+#Import water table
+waterProps = readxlsheet(xls, "Water Table")
+
 #Task A - Create functions that return thermodynamic properties based on appropriate inputs.
 function saturationPressure(temperature)
     CP.PropsSI("P","T",temperature,"Q",0.0,"Water")
 end
 
 function liquidVolume(temperature) #vf
-    V = CP.PropsSI("D","T",temperature,"Q",0.0,"Water")
-    1/V
+    D = CP.PropsSI("D","T",temperature,"Q",0.0,"Water")
+    1/D
 end
 
 function vaporVolume(temperature) #vg
-    V = CP.PropsSI("D","T",temperature,"Q",1,"Water")
-    1/V
+    D = CP.PropsSI("D","T",temperature,"Q",1,"Water")
+    1/D
 end
 
 function saturationTemperature(pressure)
@@ -55,6 +58,18 @@ function vaporEntropy(temperature) #sg
     CP.PropsSI("S","T",temperature,"Q",1,"Water")
 end
 
+function volume(temperature, pressure) #v
+    D = CP.PropsSI("D","T",temperature,"P",pressure,"Water")
+    1/D
+end
+
+function enthalpy(temperature, pressure) #h
+    CP.PropsSI("H","T",temperature,"P",pressure,"Water")
+end
+
+function entropy(temperature, pressure) #s
+    CP.PropsSI("S","T",temperature,"P",pressure,"Water")
+end
 #Task B - Compare the function values to the baseline steam tables provided in the assignment by calculating the least squares error for each property.
 #This code could be made more elegant by utilizing a nested for loop that pulls the header columns from the excel sheet and queries appropriately named functions
 
@@ -135,6 +150,38 @@ end
 
 sg_error = mean(sg_errors)
 
+#v
+v_errors = [] #initialize errors array to store least square error
+for row = 2:length(waterProps[2:end,1])
+    original = waterProps[row, 3]
+    estimated = volume(waterProps[row, 1],waterProps[row, 2])
+    error = ((original -estimated)/original)^2 # Calculate least square error
+    push!(v_errors,error) #append the new value for error
+end
+
+v_error = mean(v_errors)
+
+#h
+h_errors = [] #initialize errors array to store least square error
+for row = 2:length(waterProps[2:end,1])
+    original = waterProps[row, 4]
+    estimated = enthalpy(waterProps[row, 1],waterProps[row, 2])
+    error = ((original -estimated)/original)^2 # Calculate least square error
+    push!(h_errors,error) #append the new value for error
+end
+
+h_error = mean(h_errors)
+
+#s
+s_errors = [] #initialize errors array to store least square error
+for row = 2:length(waterProps[2:end,1])
+    original = waterProps[row, 5]
+    estimated = entropy(waterProps[row, 1],waterProps[row, 2])
+    error = ((original -estimated)/original)^2 # Calculate least square error
+    push!(s_errors,error) #append the new value for error
+end
+
+s_error = mean(s_errors)
 # Task 3 - Plot a water temperature-entropy diagram with isobaric lines for pressures of 0.10,0.5,1.0,5,10,30,45,80,110,150,200, and 210.6 bar.
 
 #create saturation line
