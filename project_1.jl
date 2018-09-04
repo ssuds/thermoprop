@@ -6,6 +6,7 @@
 using PyCall
 using ExcelReaders
 using Plots
+using Statistics #Needed to calculate mean
 @pyimport scipy as sp
 @pyimport xlwings as xl
 @pyimport scipy.interpolate as int
@@ -20,12 +21,30 @@ function saturationPressure(temperature)
     CP.PropsSI("P","T",temperature,"Q",0.0,"Water")
 end
 
+function liquidVolume(temperature) #vf
+    V = CP.PropsSI("D","T",temperature,"Q",0.0,"Water")
+    1/V
+end
+
+function vaporVolume(temperature) #vg
+    V = CP.PropsSI("D","T",temperature,"Q",1,"Water")
+    1/V
+end
+
 function saturationTemperature(pressure)
     CP.PropsSI("T","P",pressure,"Q",0.0,"Water")
 end
 
 function saturationTemperatureIsobars(entropy,pressure) #function that takes entropy as our X value, pressure as our constant pressure line value, outputs temperature as Y value
     CP.PropsSI("T","P",pressure,"S",entropy,"Water")
+end
+
+function liquidEnthalpy(temperature)  #hf
+    CP.PropsSI("H","T",temperature,"Q",0.0,"Water")
+end
+
+function vaporEnthalpy(temperature)  #hg
+    CP.PropsSI("H","T",temperature,"Q",1,"Water")
 end
 
 function liquidEntropy(temperature)  #sf
@@ -37,22 +56,86 @@ function vaporEntropy(temperature) #sg
 end
 
 #Task B - Compare the function values to the baseline steam tables provided in the assignment by calculating the least squares error for each property.
-errors = [] #initialize errors array to store least square error
+#This code could be made more elegant by utilizing a nested for loop that pulls the header columns from the excel sheet and queries appropriately named functions
+
+#P
+P_errors = [] #initialize errors array to store least square error
 for row = 2:length(satProps[2:end,1])
     original = satProps[row, 2]
     estimated = saturationPressure(satProps[row, 1])
     error = ((original -estimated)/original)^2 # Calculate least square error
-    push!(errors,error) #append the new value for error
+    push!(P_errors,error) #append the new value for error
 end
 
-print(errors)
+P_error = mean(P_errors)
+
+#vf
+vf_errors = [] #initialize errors array to store least square error
+for row = 2:length(satProps[2:end,1])
+    original = satProps[row, 3]
+    estimated = liquidVolume(satProps[row, 1])
+    error = ((original -estimated)/original)^2 # Calculate least square error
+    push!(vf_errors,error) #append the new value for error
+end
+
+vf_error = mean(vf_errors)
+
+#vg
+vg_errors = [] #initialize errors array to store least square error
+for row = 2:length(satProps[2:end,1])
+    original = satProps[row, 4]
+    estimated = vaporVolume(satProps[row, 1])
+    error = ((original -estimated)/original)^2 # Calculate least square error
+    push!(vg_errors,error) #append the new value for error
+end
+
+vg_error = mean(vg_errors)
+
+#hf
+hf_errors = [] #initialize errors array to store least square error
+for row = 2:length(satProps[2:end,1])
+    original = satProps[row, 5]
+    estimated = liquidEnthalpy(satProps[row, 1])
+    error = ((original -estimated)/original)^2 # Calculate least square error
+    push!(hf_errors,error) #append the new value for error
+end
+
+hf_error = mean(hf_errors)
+
+#hg
+hg_errors = [] #initialize errors array to store least square error
+for row = 2:length(satProps[2:end,1])
+    original = satProps[row, 6]
+    estimated = vaporEnthalpy(satProps[row, 1])
+    error = ((original -estimated)/original)^2 # Calculate least square error
+    push!(hg_errors,error) #append the new value for error
+end
+
+hg_error = mean(hg_errors)
+
+#sf
+sf_errors = [] #initialize errors array to store least square error
+for row = 2:length(satProps[2:end,1])
+    original = satProps[row, 7]
+    estimated = liquidEntropy(satProps[row, 1])
+    error = ((original -estimated)/original)^2 # Calculate least square error
+    push!(sf_errors,error) #append the new value for error
+end
+
+sf_error = mean(sf_errors)
+
+#sg
+sg_errors = [] #initialize errors array to store least square error
+for row = 2:length(satProps[2:end,1])
+    original = satProps[row, 8]
+    estimated = vaporEntropy(satProps[row, 1])
+    error = ((original -estimated)/original)^2 # Calculate least square error
+    push!(sg_errors,error) #append the new value for error
+end
+
+sg_error = mean(sg_errors)
 
 # Task 3 - Plot a water temperature-entropy diagram with isobaric lines for pressures of 0.10,0.5,1.0,5,10,30,45,80,110,150,200, and 210.6 bar.
-#Use water properties to find enthalpy using 2d interpolation for the last part of the project
-waterProps = readxlsheet(xls, "Water Table")
-waterS = int.interp2d(waterProps[2:end,1], waterProps[2:end,2], waterProps[2:end, 5])
-
-waterS(300, 10000)[1] #Interpolate entropy
 
 #create saturation line
 pressures = 0.04:1:220
@@ -68,22 +151,25 @@ end
 
 s = sortslices(saturationLine, dims=1) #want one continuous line, so we are sorting. This wouldnt matter if we did a scatterplot
 
-#Plotting isobars
-
-#10e5 isobar
-pressure = 10e5
-entropies = 1000:100:9200
-temperatures = []
-for s in 1:length(entropies)
-    push!(temperatures, saturationTemperatureIsobars(entropies[s],pressure))
-end
-
 #using Plots package to plot the saturation line
 gr()
 plot(s[1:end, 1], s[1:end, 2],
     fill=(0, 0.5, :gray),
     ylabel = "Temperature (K)",
     xlabel = "Entropy (J/(kg*K))")
+
+#Plotting isobars
+isobars = [0.10e5;0.5e5;1.0e5;5e5;10e5;30e5;45e5;80e5;110e5;150e5;200e5;210.6e5]
+entropies = 1000:100:9200
+
+for i = 1:length(isobars)
+    pressure = isobars[i]
+    temperatures = []
+    for s in 1:length(entropies)
+        push!(temperatures, saturationTemperatureIsobars(entropies[s],pressure))
+    end
+    plot!(entropies, temperatures) #exclamation point appends this plot over the existing plot
+end
 gui()
 
-plot!(entropies, temperatures) #exclamation point appends this plot over the existing plot
+plot!(0,4000) #Hack: plot a single point, for some reason graph does not regenerate unless this is called
