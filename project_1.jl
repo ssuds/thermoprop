@@ -19,6 +19,11 @@ satProps = readxlsheet(xls, "Saturation Table") #read in properties as an array
 #Import water table
 waterProps = readxlsheet(xls, "Water Table")
 
+#Import humidity properties
+humidityProps = readxlsheet(xls, "Humidity Properties")
+
+p_atm = 101325 #Define atmospheric pressure
+
 #Task A - Create functions that return thermodynamic properties based on appropriate inputs.
 function saturationPressure(temperature)
     CP.PropsSI("P","T",temperature,"Q",0.0,"Water")
@@ -69,6 +74,26 @@ end
 
 function entropy(temperature, pressure) #s
     CP.PropsSI("S","T",temperature,"P",pressure,"Water")
+end
+
+function partialPressureVapor(temperature, rh) #P_v
+    CP.HAPropsSI("P_w","T",temperature,"P",p_atm,"R",rh)
+end
+
+function humidityRatio(temperature, rh) #w
+    CP.HAPropsSI("W","T",temperature,"P",p_atm,"R",rh)
+end
+
+function mixtureVolume(temperature, rh) #v_a
+    CP.HAPropsSI("Vda","T",temperature,"P",p_atm,"R",rh)
+end
+
+function mixtureEnthalpy(temperature, rh) #h_a
+    CP.HAPropsSI("Hda","T",temperature,"P",p_atm,"R",rh)
+end
+
+function mixtureEntropy(temperature, rh) #s_a
+    CP.HAPropsSI("Sda","T",temperature,"P",p_atm,"R",rh)
 end
 #Task B - Compare the function values to the baseline steam tables provided in the assignment by calculating the least squares error for each property.
 #This code could be made more elegant by utilizing a nested for loop that pulls the header columns from the excel sheet and queries appropriately named functions
@@ -182,6 +207,66 @@ for row = 2:length(waterProps[2:end,1])
 end
 
 s_error = mean(s_errors)
+
+#P_v
+P_v_errors = [] #initialize errors array to store least square error
+for row = 2:length(humidityProps[2:end,1])
+    original = humidityProps[row, 3]
+    estimated = partialPressureVapor(humidityProps[row, 1],humidityProps[row, 2])
+    error = ((original -estimated)/original)^2 # Calculate least square error
+    push!(P_v_errors,error) #append the new value for error
+end
+
+P_v_error = mean(P_v_errors)
+
+#w
+w_errors = [] #initialize errors array to store least square error
+for row = 2:length(humidityProps[2:end,1])
+    original = humidityProps[row, 4]
+    estimated = humidityRatio(humidityProps[row, 1],humidityProps[row, 2])
+    error = ((original -estimated)/original)^2 # Calculate least square error
+    push!(w_errors,error) #append the new value for error
+end
+
+w_error = mean(w_errors)
+
+#v_a
+v_a_errors = [] #initialize errors array to store least square error
+for row = 2:length(humidityProps[2:end,1])
+    original = humidityProps[row, 5]
+    estimated = mixtureVolume(humidityProps[row, 1],humidityProps[row, 2])
+    error = ((original -estimated)/original)^2 # Calculate least square error
+    push!(v_a_errors,error) #append the new value for error
+end
+
+v_a_error = mean(v_a_errors)
+
+#h_a
+h_a_errors = [] #initialize errors array to store least square error
+for row = 2:length(humidityProps[2:end,1])
+    original = humidityProps[row, 6]
+    estimated = mixtureEnthalpy(humidityProps[row, 1],humidityProps[row, 2])
+    error = ((original -estimated)/original)^2 # Calculate least square error
+    push!(h_a_errors,error) #append the new value for error
+end
+
+h_a_error = mean(h_a_errors)
+
+#s_a
+s_a_errors = [] #initialize errors array to store least square error
+for row = 2:length(humidityProps[2:end,1])
+    original = humidityProps[row, 7]
+    estimated = mixtureEntropy(humidityProps[row, 1],humidityProps[row, 2])
+    error = ((original -estimated)/original)^2 # Calculate least square error
+    push!(s_a_errors,error) #append the new value for error
+end
+
+s_a_error = mean(s_a_errors)
+
+#Collect All Average Errors
+errors = ["P" "vf" "vg" "hf" "hg" "sf" "sg" "v" "h" "s" "P_v" "w" "v_a" "h_a" "s_a";
+P_error vf_error vg_error hf_error hg_error sf_error sg_error v_error h_error s_error P_v_error w_error v_a_error h_a_error s_a_error]
+
 # Task 3 - Plot a water temperature-entropy diagram with isobaric lines for pressures of 0.10,0.5,1.0,5,10,30,45,80,110,150,200, and 210.6 bar.
 
 #create saturation line
